@@ -34,3 +34,4 @@ docker-compose up --build
 - improve UI
 - add loading on frontend as external api adds latency
 - manage secrets (currently randomly generated for local deployments)
+- adding addresses waits for external api - doesn't add in frontend until resolved
