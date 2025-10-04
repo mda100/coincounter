@@ -7,22 +7,21 @@ def add_transactions_async(address_id, transactions):
     try:
         address = Address.objects.get(id=address_id)
     except Address.DoesNotExist:
+        print(f"Address with id {address_id} not found")
         return
 
-    created_count = 0
-    for tx in transactions:
+    for i, tx in enumerate(transactions):
+        print(f"Processing transaction {i+1}/{len(transactions)}")
         obj, created = Transaction.objects.get_or_create(
             tx_hash=tx["hash"],
             defaults={
                 "address": address,
-                "version": tx.get("version"),
-                "size": tx.get("size"),
-                "block_height": tx.get("block_height"),
-                "tx_index": tx.get("tx_index"),
+                "version": tx.get("version") or 1,
+                "size": tx.get("size") or 0,
+                "block_height": tx.get("block_height") or 0,
+                "tx_index": tx.get("tx_index") or "0",
             }
         )
-        if created:
-            created_count += 1
 
 @shared_task
 def poll_all_addresses():
@@ -30,10 +29,14 @@ def poll_all_addresses():
     Iterates over addresses in the database, fetches updated data from the
     blockchain API, updates address metadata, and queues new transactions for async insertion.
     """
+    import time
+    
     addresses = Address.objects.all()
+    print(f"Polling {addresses.count()} addresses...")
 
-    for address in addresses:
+    for i, address in enumerate(addresses):
         try:
+            print(f"Polling address {i+1}/{addresses.count()}: {address.address}")
             data = fetch_address_info(address.address)
             
             # update address metadata
@@ -48,6 +51,8 @@ def poll_all_addresses():
             transactions = data.get("transactions", [])
             if transactions:
                 add_transactions_async.delay(address.id, transactions)
+                print(f"Queued {len(transactions)} transactions for address {address.address}")
              
         except Exception as e:
-            pass
+            print(f"Error polling address {address.address}: {str(e)}")
+            time.sleep(10)

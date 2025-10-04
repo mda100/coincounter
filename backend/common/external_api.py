@@ -10,9 +10,11 @@ def fetch_address_info(address: str) -> dict:
     url = f"https://blockchain.info/rawaddr/{address}?limit=50"
     
     retries = 3
+    base_delay = 5
+    
     while retries > 0:
         try:
-            time.sleep(2)
+            time.sleep(base_delay)
             
             resp = requests.get(url, timeout=15)
             resp.raise_for_status()
@@ -31,10 +33,12 @@ def fetch_address_info(address: str) -> dict:
             retries -= 1                
             if retries: 
                 if hasattr(e, 'response') and e.response.status_code == 429: # rate limited
-                    wait_time = 30 * (3 - retries)
+                    wait_time = 60 * (2 ** (3 - retries))
                     print(f"Rate limited, waiting {wait_time} seconds...")
                     time.sleep(wait_time)
                 else:
-                    time.sleep(5 * (3 - retries))
+                    wait_time = 10 * (3 - retries)
+                    print(f"Request failed, retrying in {wait_time} seconds...")
+                    time.sleep(wait_time)
             else:
-                raise Exception(f"Request to {url} failed: {str(e)}")
+                raise Exception(f"Request to {url} failed after 3 retries: {str(e)}")
